@@ -1,0 +1,70 @@
+				
+								TP1: implémenter un serveur FTP
+
+	1)Auteurs:
+		-KHEMICI Imane
+		-TAIFOUR Mina
+		-Mbabazi Simbi Raissa
+
+	2)Compilation:
+               
+		- L'éxécution du projet se fait dans un terminal par la commande: java -jar dossier/ftpServer.jar
+		- On lance un autre terminal et on execute la commande: ftp localhost 1024
+		- Afin de s'authentifier : 
+
+                login: utilisateur
+                mot de passe : mdp
+
+                On peut se connecter sans mot de passe en utilisant :
+                login : anonymous
+		
+	3)Introduction: 
+			
+		Notre Tp a pour objectif de créer un serveur FTP qui permet de transferrer des fichiers d'une machine à une autre; en utilisant le port 1024, afin de communiquer avec des clients,
+		le serveur gère les requêtes USER, PASS, QUIT, LIST , RETR, PORT, PWD, CWD directory.
+	
+	4) Architecture du code: 
+
+       *Package ftp: 
+
+		- La class "ftpServer": qui contient la fonction principale main(), qui fait l'initialisation du serveur ftp avec le port, puis elle execute le process
+		ftpRequest créé.
+		
+		- La classe "FTPRequest": contient les méthodes qui traitent les commandes suivantes:
+			-- USER , processUSER()
+			-- PASS, processPASS()
+			-- RETR, processRETR()
+			-- STOR, processSTOR()
+			-- LIST, processLIST()
+			-- QUIT, processQUIT()
+			-- PWD,  processPWD()
+                        -- CWD,  processCWD() 
+                        Elle contient aussi: 
+			-- un constructeur FTPRequest,  
+			-- la méthode run() : permet d'interagir client - serveur
+			-- la méthode processRequest() : permet de lancer une commande
+			-- la méthode processPORT() : permet de specifier le port 
+			-- la méthode processSYST() : permet d'afficher le systeme d'exploitation utilisé
+                        -- la méthode envoyerFichier(): permet d'envoyer un fichier du serveur vers le dossier local
+                        -- la méthode recoisFichier(): permet de recevoir un fichier sur notre serveur a partir d'un dossier local
+                        -- la méthode sendMessage(): permet d'envoyer un message en octet
+                        -- la méthode sendListe(): permet de recuperer la liste des fichiers dans un dossier 
+
+
+		- la classe FTPRequestTest qui contient les tests concernant la connection et la déconnextion de l'utilisateur, ainsi que le test sur le  mot de passe.
+        *Package ftpTest:
+                - la classe FTPRequestTest contient les tests de nos methodes:
+
+                        cette classe permet de tester la connexion à un serveur, la deconnexion et l'authentification.
+                
+			
+	4)Compatibilité
+
+		Nous avons tester notre serveur seulement avec la commande ftp. Il n'est pas compatible (à priori ) avec filezilla.	
+
+	5)Remarques
+	       La commande CDUP n'a pas été implementé.
+               Les tests des autres methodes n'ont pas été implementé.
+               Notre code a été insperé de d'autres codes trouvés sur interne (Site comme le site de zero, developper et etc)
+               Afin de visioner le code sous eclipse il faut importe le dossier tp1.
+               L'utilisateur peut acceder à tout les dossier mais l'anonymous.

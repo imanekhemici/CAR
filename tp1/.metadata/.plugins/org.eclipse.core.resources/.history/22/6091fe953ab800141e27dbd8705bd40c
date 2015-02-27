@@ -1,0 +1,28 @@
+package ftp;
+
+import java.net.ServerSocket;
+
+public class ftpServer {
+
+	
+	public static void main (String[] args){
+		
+		final ServerSocket ss = new ServerSocket(3636);
+		final ServerSocket dss = new ServerSocket(3637);
+		/*fin creation serversocket*/
+		Socket socket =null;
+		/*accepter une connection passer la main a un thread*/
+		while(true){
+		socket = ss.accept();
+		System.out.println("hello "+socket.getInetAddress());
+		Thread tFtp =new Thread(new FtpRequest(socket, dss));
+		tFtp.start();
+		}
+		
+		
+		
+	}
+	
+	
+	
+}

@@ -1,0 +1,15 @@
+package ftp;
+
+public class ftpServer {
+
+	
+	public static void (String[] args){
+		
+		
+		
+		
+	}
+	
+	
+	
+}

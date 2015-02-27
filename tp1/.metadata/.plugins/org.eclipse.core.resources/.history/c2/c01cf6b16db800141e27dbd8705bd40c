@@ -1,0 +1,325 @@
+package ftp;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+public class FTPRequest implements Runnable {
+	//
+	public Socket dsocket;
+	//
+	public String user;
+	//
+	public Socket socket;
+	//
+	public PrintStream printStream;
+	//
+	public BufferedReader bufferReader;
+	//
+	public DataOutputStream doStream ;
+	//
+	public String directory ; 
+	//
+	public int port2 ;
+	//
+	public String[] commandeCourante;
+	//Attribut qui permet de verifier la connection
+	public boolean log;
+	//
+	public ServerSocket serSocket;
+	
+	
+	
+	//Creation de thread de connextion
+	public FTPRequest(Socket s) throws IOException{
+		
+		this.socket= s;
+		this.directory= System.getProperty("user.dir");
+		this.log = false;
+		this.bufferReader =	new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+		this.doStream = new DataOutputStream(this.socket.getOutputStream());
+		
+		this.sendMessage("220 Bonjour");
+	}
+	/**Permet d'executer la commande
+	 * 
+	 */
+	@Override
+	public void run() {
+		
+		try {
+			System.out.println("332 traitement d'authentification\n");
+			String message = "";
+			while (!socket.isClosed()) {
+				message = bufferReader.readLine();
+				if (message != null) {
+					commandeCourante = message.split(" ");
+					System.out.println("Commande: "+commandeCourante[0]);
+					this.processRequest(commandeCourante);
+				}
+
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	
+	
+	/**permet de traiter les commandes
+	 * 
+	 * @param request
+	 * @throws IOException 
+	 */
+	public void processRequest(String[] request) throws IOException{
+		
+		if(request[0].equals("USER")){
+			this.processUSER();
+		}
+		
+		if(request[0].equals("PASS")){
+			this.processPASS();
+		}
+		if(request[0].equals("RETR")){
+			this.processRETR();
+		}
+		
+		if(request[0].equals("STOR")){
+			this.processSTOR();
+		}
+		if(request[0].equals("LIST")){
+			this.processLIST();
+		}
+		if(request[0].equals("QUIT")){
+			this.processQUIT();
+		}
+		if(request[0].equals("SYST")){
+			this.processSYST();
+		}
+		if(request[0].equals("PORT")){
+			this.processPORT(request[1]);
+		}
+	}
+	
+	/**Permet de recuperer le port utilisé par le serveur
+	 * @throws IOException 
+	 * @throws UnknownHostException 
+	 * 
+	 */
+	public void processPORT(String requet) throws UnknownHostException, IOException {
+		String[] req  = requet.split(",");
+		this.port2 =  256*Integer.parseInt(req[4])+Integer.parseInt(req[5]);
+		String adresse = req[0]+"."+req[1]+"."+req[2]+"."+req[3];
+		this.dsocket = new Socket(adresse,port2);
+		this.sendMessage("200 PORT command successful");
+
+	}
+	
+	/**Permet de recuperer le systeme 
+	 * @throws IOException 
+	 * 
+	 */
+	public void processSYST() throws IOException{
+		if(this.log){
+			System.out.println("215 UNIX");
+			this.sendMessage("215 Unix");
+			}
+			else{
+			this.sendMessage("530 not log");
+			}
+	}
+	
+	/**Permet de verifier le nom d'utilisateur
+	 * le nom de l'utilisateur est deja defini (pas de recuperation a partir d'un fichier)
+	 * @throws IOException 
+	 */
+	public void processUSER() throws IOException{
+		System.out.println("USER "+ commandeCourante[1]);
+		this.log = false;
+		this.directory = this.directory.concat("/serveur");
+		
+		if(this.commandeCourante[1].equals("anonymous")){
+			this.user = commandeCourante[1];
+			this.directory = System.getProperty("user.dir").concat("/serveur/"+commandeCourante[1]);
+			this.log=true;
+			this.sendMessage(": Connecté au tant qu'un anonymous! mot de passe non obligé");
+		}else{
+		if(this.commandeCourante[1].equals("utilisateur")){
+			this.user=commandeCourante[1];
+			this.directory = System.getProperty("user.dir").concat("/serveur/"+commandeCourante[1]);
+			this.sendMessage("331: Utilisateur reconnu! en attente de mot de passe");
+		}
+		else{
+			this.sendMessage("332: Utilisateur non reconnu");
+			
+		}
+		
+		}
+		
+	}
+	/**permet de verifier le mot de passe 
+	 * @throws IOException 
+	 * 
+	 */
+	public void processPASS() throws IOException{
+		
+		System.out.println("PASS "+ commandeCourante[1]);
+		
+		if(this.user.equals("utilisateur") 
+			&& this.commandeCourante[1].equals("mdp")){
+			
+			this.sendMessage("230: connexion avec login reussie");
+			this.log=true;
+			}
+			else{
+	
+			this.sendMessage("332: echec de connexion ");
+			}
+			
+		
+	}
+	/**Permet d'envoyer un fichier
+	 * @throws IOException 
+	 * 
+	 */
+	public void processRETR() throws IOException{
+		System.out.println("RETR");
+		if(!log){
+		this.sendMessage("530 not log");
+		}
+		else{
+			envoyeFichier();
+		}
+		
+		
+	}
+	/**permet de recevoir un fichier 
+	 * 
+	 * @throws IOException
+	 */
+	public void processSTOR() throws IOException{
+		System.out.println("STOR");
+		if(!log){
+		this.sendMessage("530 not log");
+		}
+		else{
+			recoitFichier();
+		}
+	}
+	
+	/** permet d'afficher tout les fichiers dans le repertoire courant
+	 * @throws IOException 
+	 * 
+	 */
+	public void processLIST() throws IOException{
+		if(!log){
+		this.sendMessage("530 not log");
+		}
+		else{
+		File dossier;
+		dossier= new File(this.directory);
+
+		String res="";
+		for(File in : dossier.listFiles()){
+			System.out.println(in.toString());
+			res+=in.getName() + "\r\n";
+		}
+		this.sendListe(res);
+		}
+		}
+	
+	/**permet de quitter la session ftp
+	 * @throws IOException 
+	 * 
+	 */
+	public void processQUIT() throws IOException{
+		System.out.println("QUIT");
+		this.sendMessage("221 QUIT");
+		socket.close();
+	}
+
+/** Permet d'afficher un message 
+ * et de d'avoir ce message en octet
+ * @param string
+ * @throws IOException
+ */
+
+	private void sendMessage(String message) throws IOException{
+		System.out.println("envoie message "+message);
+		this.doStream.writeBytes(message+"\r\n");
+		this.doStream.flush();
+		}
+
+/**Permet d'envoyer un fichier
+ * 
+ */
+	public void envoyeFichier() throws IOException {
+		System.out.println("envoie fichier "+this.commandeCourante[1]);
+		File fichier = new File(this.directory+"/"+this.commandeCourante[1]);
+		if(!fichier.exists()){
+		this.sendMessage("404 file not found");
+		}
+		else{
+		this.sendMessage("125 download");
+		DataOutputStream dos= new DataOutputStream(this.dsocket.getOutputStream());
+		FileInputStream fis = new FileInputStream(fichier);
+		byte[] tmp = new byte[this.dsocket.getSendBufferSize()];
+		int readb = fis.read(tmp);
+		while(readb>0){
+		System.out.println(readb);
+		dos.write(tmp,0,readb);
+		readb=fis.read(tmp);
+		}
+		fis.close();
+		dos.flush();
+		this.sendMessage("226 end download");
+		dos.close();
+		}
+		}
+
+	
+	
+	
+	/**Permet de recevoir un fichier
+	 * 
+	 */
+	
+	private void recoitFichier() throws IOException {
+		System.out.println("reception fichier "+this.commandeCourante[1]);
+		this.sendMessage("125 upload");
+		InputStream is= this.dsocket.getInputStream();
+		FileOutputStream fos = new FileOutputStream(this.directory+"/"+this.commandeCourante[1]);
+		byte[] tmp = new byte[this.dsocket.getReceiveBufferSize()];
+		int readb = is.read(tmp);
+		while(readb != -1){
+		fos.write(tmp, 0, readb);
+		readb = is.read(tmp);
+		}
+		fos.flush();
+		fos.close();
+		this.sendMessage("226 end upload");
+		is.close();
+		}
+	/** envoyer liste de fichier
+	 * 
+	 */
+	private void sendListe(String string) throws IOException{
+		System.out.println("envoie liste\n " +string);
+		this.sendMessage("125 listing");
+		DataOutputStream dos= new DataOutputStream(this.dsocket.getOutputStream());
+		dos.writeBytes(string);
+		dos.flush();
+		this.sendMessage("226 end listing");
+		dos.close();
+		}
+}
+ 

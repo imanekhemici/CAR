@@ -1,0 +1,31 @@
+package ftp;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class ftpServer {
+
+	
+	public static final int Port=1024 ;
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		try {
+			ServerSocket ss = new ServerSocket(Port);
+			while(true){
+				Socket s = ss.accept();
+				FTPRequest fr = new FTPRequest(s);
+				Thread th = new Thread(fr);
+				th.start();			
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+	}
+	
+	
+}

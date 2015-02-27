@@ -1,0 +1,5 @@
+package ftpm;
+
+public class FTPRequest {
+
+}

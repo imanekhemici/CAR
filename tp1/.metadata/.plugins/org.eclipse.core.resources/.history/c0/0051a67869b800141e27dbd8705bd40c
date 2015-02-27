@@ -1,0 +1,328 @@
+package ftpm;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintStream;
+import java.io.RandomAccessFile;
+import java.net.Socket;
+import java.net.UnknownHostException;
+/**
+ * 
+ */
+
+/**
+ * @author mohamed amine
+ * 
+ */
+public class FTPRequest implements Runnable {
+	Socket s;
+	PrintStream ps;
+	BufferedReader br;
+	DataOutputStream dos ;
+	String dir ; 
+	int port2 ; 
+	
+	
+	public FTPRequest(Socket s) {
+		// TODO Auto-generated constructor stub
+		this.s = s;
+		this.dir = System.getProperty("user.dir");
+		this.initFTP();
+	}
+
+	private void initFTP() {
+		InputStream is;
+		OutputStream os ; 
+		try {
+			is = s.getInputStream();
+			os = s.getOutputStream(); 
+			
+			dos = new DataOutputStream(os);
+			InputStreamReader isr = new InputStreamReader(is);
+			
+			br = new BufferedReader(isr);
+			
+			ps = new PrintStream(s.getOutputStream());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+
+		try {
+			ps.print("332 traitement d'authentification\n");
+			String data = "";
+
+			while (true) {
+				data = br.readLine();
+				if (data != null) {
+					System.out.println(data);
+					this.processRequest(data);
+				}
+
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public void processRequest(String requet) throws IOException {
+		if (requet.startsWith("USER"))
+			this.processUSER(requet);
+		else if (requet.startsWith("PASS"))
+			this.processPASS(requet);
+		else if (requet.startsWith("RETR"))
+			this.processRETR(requet);
+		else if (requet.startsWith("STOR"))
+			this.processSTOR(requet);
+		else if (requet.startsWith("LIST"))
+			this.processLIST(requet);
+		else if (requet.startsWith("QUIT"))
+			this.processQUIT(requet);
+		else if (requet.startsWith("SYST"))
+			this.processSYST();
+		else if (requet.startsWith("FEAT"))
+			this.processFEAT();
+		else if (requet.startsWith("PWD"))
+			this.processPWD();
+		else if (requet.startsWith("CWD"))
+			this.processCWD(requet);
+		else if (requet.startsWith("CDUP"))
+			this.processCDUP();
+		else if (requet.startsWith("TYPE I"))
+			this.processTYPE();
+		else if (requet.startsWith("PASV"))
+			this.processPASV();
+		else if (requet.startsWith("PORT"))
+			this.processPORT(requet);
+	}
+
+	/**
+	 * cette méthode ferme la connexion
+	 * 
+	 * @param requet
+	 */
+	private void processQUIT(String requet) {
+		// TODO Auto-generated method stub
+		ps.println("211 serveur deconnecter");
+	}
+
+	/**
+	 * cette méthode envoie la liste des fichier du répértoire courant
+	 * 
+	 * @param requet
+	 *            l'url
+	 * @throws IOException 
+	 * @throws UnknownHostException 
+	 */
+	private void processLIST(String requet) throws UnknownHostException, IOException {
+		
+		
+		PrintStream ps2;
+		Socket S2 = new Socket("127.0.0.1",this.port2);	
+		ps2 = new PrintStream(S2.getOutputStream());
+		ps2.println("150 opening mode ASCII");
+		System.out.println("dir : " + dir);
+		File repertoir = new File(dir);
+		// TODO Auto-generated method stub
+		String[] listefichiers;
+		
+		int i;
+		listefichiers = repertoir.list();
+		for (i = 0; i < listefichiers.length; i++) {
+			String fichier ; 
+			ps.println(listefichiers[i]);
+			
+			File f = new File(listefichiers[i]);
+			
+			if (f.isDirectory())
+				fichier = "\053"+f.hashCode()+",m"+f.lastModified()+",/,s"+f.length()+"\011"+f.getName()+"\015\012";
+			else 
+				fichier = "\053"+f.hashCode()+",m"+f.lastModified()+",r,s"+f.length()+"\011"+f.getName()+"\015\012";
+			
+			System.out.println(fichier);
+			ps2.println(fichier);
+		} 
+		ps2.flush();
+		ps2.println("226 transfer complete");
+		S2.close();
+		
+	}
+
+	/**
+	 * cette méthode dépose un fichier venant du répértoire local dans le
+	 * répértoire distant
+	 * 
+	 * @param requet
+	 *            le fichier à deposer
+	 * @throws IOException 
+	 */
+	private void processSTOR(String requet) throws IOException {
+		// TODO Auto-generated method stub
+		ps.println("150 Binary data connection");
+		ps.println("125 transfer");
+		
+         String fic = requet.substring(5);
+         fic = fic.trim();
+         
+         System.out.println(dir+"\\"+fic+"\n" +  br.readLine());
+         ps.printf("br : " + br.readLine());
+         RandomAccessFile inFile = new RandomAccessFile(dir+"\\"+fic,"rw");
+
+         String amount;
+         try { 
+                 while((amount = br.readLine()) != null) {
+                	 inFile.writeBytes(amount+"\n");
+                 }    
+                 ps.println("226 transfer complete");
+                 inFile.close();
+         }
+         catch(IOException e) { } 
+	}
+
+	/**
+	 * 
+	 * 
+	 * 
+	 * @param requet
+	 *            le fichier à prendre
+	 * @throws IOException 
+	 */
+	private void processRETR(String requet) throws IOException {
+		// TODO Auto-generated method stub
+             ps.println("150 Binary data connection");
+             
+             String fic = requet.substring(5);
+             fic = fic.trim();
+             
+             RandomAccessFile outFile = new RandomAccessFile(dir+"\\"+fic,"r");             
+             
+             String amount;
+             try {
+                     while((amount = outFile.readLine()) != null) {
+                    	 dos.writeBytes(amount);
+                     }
+                     ps.println("226 transfer complete");
+                     outFile.close();
+             }
+             catch(IOException e) { } 
+	}
+
+	/**
+	 * cette méthode prend de vérifier si le mot de passe est bon ou pas
+	 * 
+	 * @param requet
+	 *            le mot de passe
+	 */
+	private void processPASS(String requet) {
+		// TODO Auto-generated method stub
+		if (requet.isEmpty())
+			ps.print("Error : PASS is empty ");
+		else if (requet.length() < 6)
+			ps.print("Error : PASS lenth lower than 6 characters ");
+		else
+			ps.print("220 PASS est bon\n");
+	}
+
+	/**
+	 * cette méthode prend de vérifier si le loggin est bon ou pas
+	 * 
+	 * @param requet
+	 *            le loggin
+	 */
+	private void processUSER(String requet) {
+		// TODO Auto-generated method stub
+		if (requet.isEmpty())
+			ps.print("Error : USER is empty ");
+		else if (Character.isDigit(requet.charAt(1)))
+			ps.print("Error : USER start with a digit ");
+		else
+			ps.print("331 USER : est bon\n");
+	}
+
+	private void processSYST() {
+		// TODO Auto-generated method stub
+		ps.println("215 Java Power Type: L8");
+	}
+
+	private void processFEAT() {
+		// TODO Auto-generated method stub
+		ps.println("211-Extended features supported:   LANG FR*    UTF8    AUTH TLS;TLS-C;SSL;TLS-P;    PBSZ    PROT C;P;    CCC    HOST    SIZE    MDTM    REST STREAM");
+		ps.println("211 END");
+	}
+
+	/*
+	 * affichier le chemin de la répertoire courante
+	 */
+	private void processPWD() {
+		// TODO Auto-generated method stub
+		
+		ps.println("257 " + dir + " c'est la répertoire courante");
+	}
+
+	/*
+	 * changer le répertoire
+	 */
+	private void processCWD(String requet) {
+		// TODO Auto-generated method stub
+		this.dir = requet.substring(4); // pour récupérer le path
+		dir.trim(); // pour supprimer les espaces
+		int n = dir.lastIndexOf("\\");
+        dir = dir.substring(0,n); 
+        
+        ps.println("250 CWD "+dir);
+	}
+
+	/*
+	 * affichier le chemin de la répertoire courante
+	 */
+	private void processCDUP() {
+		// TODO Auto-generated method stub
+		int n = dir.lastIndexOf("\\");
+        dir = dir.substring(0,n); 
+        
+        ps.println("250 CDUP "+dir);
+	}
+
+	private void processTYPE() {
+		// TODO Auto-generated method stub
+		ps.println("211 OK");
+	}
+
+	private void processPASV() {
+		// TODO Auto-generated method stub
+		ps.println("211 OK");
+	}
+
+	private void processPORT(String requet) {
+		// TODO Auto-generated method stub
+		String[] req  = requet.split(",");
+		this.port2 =  256*Integer.parseInt(req[4])+Integer.parseInt(req[5]);
+
+		ps.println( "200 PORT command successful");
+	}
+}
